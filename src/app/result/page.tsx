@@ -35,9 +35,11 @@ function ShareSection({ result, answers }: ShareSectionProps) {
   const [shareUrl, setShareUrl] = useState("");
 
   useEffect(() => {
-    // 클라이언트에서 현재 URL을 그대로 공유 URL로 사용
-    setShareUrl(window.location.href);
-  }, []);
+    // 공유 URL 직접 생성 (shared=true 파라미터 추가)
+    const baseUrl = window.location.origin;
+    const encodedAnswers = encodeURIComponent(JSON.stringify(answers));
+    setShareUrl(`${baseUrl}/result?answers=${encodedAnswers}&shared=true`);
+  }, [answers]);
 
   const shareText = `나는 ${result.emoji} ${result.name} 유형이래요! 동물 성격 테스트로 나의 성격 유형을 알아보세요!`;
 
@@ -224,6 +226,7 @@ function ShareSection({ result, answers }: ShareSectionProps) {
 function ResultContent() {
   const searchParams = useSearchParams();
   const answersParam = searchParams.get("answers");
+  const isShared = searchParams.get("shared") === "true";
 
   if (!answersParam) {
     return (
@@ -268,6 +271,120 @@ function ResultContent() {
   const worstMatches = findWorstMatches(answers, 3);
   const dimensionScores = calculateDimensionScores(answers);
 
+  // 공유받은 페이지용 렌더링 (간소화된 버전)
+  if (isShared) {
+    return (
+      <main className="min-h-screen bg-gradient-to-b from-purple-50 to-pink-50 py-8 px-4">
+        <div className="max-w-lg mx-auto">
+          {/* 친구의 결과 헤더 */}
+          <div className="bg-white rounded-3xl shadow-xl p-8 mb-6 text-center">
+            <div className="text-sm text-purple-500 font-medium mb-2">
+              친구의 동물 성격 유형은
+            </div>
+
+            <div className="text-9xl mb-4">
+              {result.emoji}
+            </div>
+
+            <h1 className="text-4xl font-bold text-gray-800 mb-4">
+              {result.name}
+            </h1>
+
+            <p className="text-gray-600 leading-relaxed mb-6">
+              {result.description}
+            </p>
+
+            {/* 특성 태그 */}
+            <div className="flex flex-wrap justify-center gap-2">
+              {result.traits.map((trait) => (
+                <span
+                  key={trait}
+                  className="bg-purple-100 text-purple-700 px-4 py-2 rounded-full text-sm font-medium"
+                >
+                  {trait}
+                </span>
+              ))}
+            </div>
+          </div>
+
+          {/* 잘 맞는 동물들 */}
+          <div className="bg-white rounded-2xl shadow-lg p-6 mb-6">
+            <h2 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+              <span className="text-green-500">💚</span> {result.name}와(과) 잘 맞는 동물 유형
+            </h2>
+            <p className="text-sm text-gray-500 mb-4">성격이 비슷해서 잘 통하는 동물들이에요</p>
+
+            <div className="space-y-3">
+              {topMatches.map(({ animal, similarity }, index) => (
+                <div
+                  key={animal.id}
+                  className="flex items-center gap-4 p-3 bg-green-50 rounded-xl border border-green-100"
+                >
+                  <span className="text-3xl">{animal.emoji}</span>
+                  <div className="flex-1">
+                    <div className="font-medium text-gray-800">
+                      {index + 1}. {animal.name}
+                    </div>
+                    <div className="text-sm text-green-600">
+                      궁합 {similarity.toFixed(0)}%
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* 안 맞는 동물들 */}
+          <div className="bg-white rounded-2xl shadow-lg p-6 mb-6">
+            <h2 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+              <span className="text-red-400">💔</span> {result.name}와(과) 안 맞는 동물 유형
+            </h2>
+            <p className="text-sm text-gray-500 mb-4">성격이 달라서 서로 이해하기 어려울 수 있어요</p>
+
+            <div className="space-y-3">
+              {worstMatches.map(({ animal, similarity }, index) => (
+                <div
+                  key={animal.id}
+                  className="flex items-center gap-4 p-3 bg-red-50 rounded-xl border border-red-100"
+                >
+                  <span className="text-3xl">{animal.emoji}</span>
+                  <div className="flex-1">
+                    <div className="font-medium text-gray-800">
+                      {index + 1}. {animal.name}
+                    </div>
+                    <div className="text-sm text-red-500">
+                      궁합 {similarity.toFixed(0)}%
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* 나도 테스트해보기 버튼 */}
+          <div className="text-center space-y-4">
+            <Link
+              href="/test"
+              className="inline-block bg-gradient-to-r from-purple-500 to-pink-500 text-white font-bold py-4 px-12 rounded-full text-lg shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200"
+            >
+              나도 테스트해보기
+            </Link>
+
+            <div>
+              <Link
+                href="/"
+                className="text-gray-500 hover:text-gray-700 transition-colors"
+              >
+                처음으로 돌아가기
+              </Link>
+            </div>
+          </div>
+        </div>
+      </main>
+    );
+  }
+
+  // 원본 결과 페이지 (테스트를 완료한 사용자용)
   return (
     <main className="min-h-screen bg-gradient-to-b from-purple-50 to-pink-50 py-8 px-4">
       <div className="max-w-lg mx-auto">
