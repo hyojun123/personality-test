@@ -3,7 +3,7 @@
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Suspense, useState, useEffect } from "react";
-import { findMatchingAnimal, findTopMatches, calculateDimensionScores, Answers } from "@/lib/calculateResult";
+import { findMatchingAnimal, findTopMatches, findWorstMatches, calculateDimensionScores, Answers } from "@/lib/calculateResult";
 import { dimensionLabels, Dimension } from "@/data/questions";
 import { Animal } from "@/data/animals";
 
@@ -35,11 +35,9 @@ function ShareSection({ result, answers }: ShareSectionProps) {
   const [shareUrl, setShareUrl] = useState("");
 
   useEffect(() => {
-    // 클라이언트에서 결과가 포함된 공유 URL 생성
-    const baseUrl = window.location.origin;
-    const encodedAnswers = encodeURIComponent(JSON.stringify(answers));
-    setShareUrl(`${baseUrl}/result?answers=${encodedAnswers}`);
-  }, [answers]);
+    // 클라이언트에서 현재 URL을 그대로 공유 URL로 사용
+    setShareUrl(window.location.href);
+  }, []);
 
   const shareText = `나는 ${result.emoji} ${result.name} 유형이래요! 동물 성격 테스트로 나의 성격 유형을 알아보세요!`;
 
@@ -267,6 +265,7 @@ function ResultContent() {
 
   const result = findMatchingAnimal(answers);
   const topMatches = findTopMatches(answers, 3);
+  const worstMatches = findWorstMatches(answers, 3);
   const dimensionScores = calculateDimensionScores(answers);
 
   return (
@@ -333,25 +332,53 @@ function ResultContent() {
           </div>
         </div>
 
-        {/* 비슷한 동물들 */}
+        {/* 잘 맞는 동물들 */}
         <div className="bg-white rounded-2xl shadow-lg p-6 mb-6">
-          <h2 className="text-lg font-bold text-gray-800 mb-4">
-            비슷한 동물 유형
+          <h2 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+            <span className="text-green-500">💚</span> 잘 맞는 동물 유형
           </h2>
+          <p className="text-sm text-gray-500 mb-4">성격이 비슷해서 잘 통하는 동물들이에요</p>
 
           <div className="space-y-3">
             {topMatches.map(({ animal, similarity }, index) => (
               <div
                 key={animal.id}
-                className="flex items-center gap-4 p-3 bg-gray-50 rounded-xl"
+                className="flex items-center gap-4 p-3 bg-green-50 rounded-xl border border-green-100"
               >
                 <span className="text-3xl">{animal.emoji}</span>
                 <div className="flex-1">
                   <div className="font-medium text-gray-800">
                     {index + 1}. {animal.name}
                   </div>
-                  <div className="text-sm text-gray-500">
-                    유사도 {similarity.toFixed(1)}%
+                  <div className="text-sm text-green-600">
+                    궁합 {similarity.toFixed(0)}%
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* 안 맞는 동물들 */}
+        <div className="bg-white rounded-2xl shadow-lg p-6 mb-6">
+          <h2 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+            <span className="text-red-400">💔</span> 안 맞는 동물 유형
+          </h2>
+          <p className="text-sm text-gray-500 mb-4">성격이 달라서 서로 이해하기 어려울 수 있어요</p>
+
+          <div className="space-y-3">
+            {worstMatches.map(({ animal, similarity }, index) => (
+              <div
+                key={animal.id}
+                className="flex items-center gap-4 p-3 bg-red-50 rounded-xl border border-red-100"
+              >
+                <span className="text-3xl">{animal.emoji}</span>
+                <div className="flex-1">
+                  <div className="font-medium text-gray-800">
+                    {index + 1}. {animal.name}
+                  </div>
+                  <div className="text-sm text-red-500">
+                    궁합 {similarity.toFixed(0)}%
                   </div>
                 </div>
               </div>

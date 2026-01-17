@@ -81,7 +81,7 @@ export function findMatchingAnimal(answers: Answers): Animal {
   return bestMatch;
 }
 
-// 모든 동물과의 유사도 계산 (상위 3개 반환)
+// 모든 동물과의 유사도 계산 (상위 N개 반환)
 export function findTopMatches(answers: Answers, count: number = 3): Array<{ animal: Animal; similarity: number }> {
   const userScores = calculateDimensionScores(answers);
 
@@ -96,5 +96,21 @@ export function findTopMatches(answers: Answers, count: number = 3): Array<{ ani
 
   return matches
     .sort((a, b) => b.similarity - a.similarity)
+    .slice(0, count);
+}
+
+// 가장 맞지 않는 동물 찾기 (하위 N개 반환)
+export function findWorstMatches(answers: Answers, count: number = 3): Array<{ animal: Animal; similarity: number }> {
+  const userScores = calculateDimensionScores(answers);
+
+  const matches = animals.map((animal) => {
+    const distance = calculateDistance(userScores, animal.scores);
+    const maxDistance = Math.sqrt(96);
+    const similarity = Math.max(0, (1 - distance / maxDistance) * 100);
+    return { animal, similarity };
+  });
+
+  return matches
+    .sort((a, b) => a.similarity - b.similarity)
     .slice(0, count);
 }
