@@ -2,9 +2,211 @@
 
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { Suspense } from "react";
+import { Suspense, useState } from "react";
 import { findMatchingAnimal, findTopMatches, calculateDimensionScores, Answers } from "@/lib/calculateResult";
 import { dimensionLabels, Dimension } from "@/data/questions";
+import { Animal } from "@/data/animals";
+
+interface ShareButtonProps {
+  onClick: () => void;
+  children: React.ReactNode;
+  className?: string;
+}
+
+function ShareButton({ onClick, children, className = "" }: ShareButtonProps) {
+  return (
+    <button
+      onClick={onClick}
+      className={`flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-medium transition-all duration-200 hover:scale-105 ${className}`}
+    >
+      {children}
+    </button>
+  );
+}
+
+interface ShareSectionProps {
+  result: Animal;
+  currentUrl: string;
+}
+
+function ShareSection({ result, currentUrl }: ShareSectionProps) {
+  const [copied, setCopied] = useState(false);
+  const [showShareMenu, setShowShareMenu] = useState(false);
+
+  const shareText = `나는 ${result.emoji} ${result.name} 유형이래요! 동물 성격 테스트로 나의 성격 유형을 알아보세요!`;
+  const shareUrl = currentUrl;
+
+  const copyToClipboard = async () => {
+    try {
+      await navigator.clipboard.writeText(`${shareText}\n${shareUrl}`);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      const textArea = document.createElement("textarea");
+      textArea.value = `${shareText}\n${shareUrl}`;
+      document.body.appendChild(textArea);
+      textArea.select();
+      document.execCommand("copy");
+      document.body.removeChild(textArea);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  };
+
+  const shareToTwitter = () => {
+    const twitterUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}&url=${encodeURIComponent(shareUrl)}`;
+    window.open(twitterUrl, "_blank", "width=600,height=400");
+  };
+
+  const shareToFacebook = () => {
+    const facebookUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}&quote=${encodeURIComponent(shareText)}`;
+    window.open(facebookUrl, "_blank", "width=600,height=400");
+  };
+
+  const shareToKakao = () => {
+    if (typeof window !== "undefined" && (window as unknown as { Kakao?: { Share?: { sendDefault: (options: unknown) => void } } }).Kakao?.Share) {
+      (window as unknown as { Kakao: { Share: { sendDefault: (options: unknown) => void } } }).Kakao.Share.sendDefault({
+        objectType: "feed",
+        content: {
+          title: `나의 동물 성격 유형: ${result.emoji} ${result.name}`,
+          description: result.description.slice(0, 100) + "...",
+          imageUrl: "",
+          link: {
+            mobileWebUrl: shareUrl,
+            webUrl: shareUrl,
+          },
+        },
+        buttons: [
+          {
+            title: "나도 테스트하기",
+            link: {
+              mobileWebUrl: shareUrl.split("/result")[0] + "/test",
+              webUrl: shareUrl.split("/result")[0] + "/test",
+            },
+          },
+        ],
+      });
+    } else {
+      alert("카카오 공유 기능을 사용하려면 카카오 SDK 설정이 필요합니다.");
+    }
+  };
+
+  const shareNative = async () => {
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: `동물 성격 테스트 결과: ${result.emoji} ${result.name}`,
+          text: shareText,
+          url: shareUrl,
+        });
+      } catch {
+        setShowShareMenu(true);
+      }
+    } else {
+      setShowShareMenu(true);
+    }
+  };
+
+  return (
+    <div className="bg-white rounded-2xl shadow-lg p-6 mb-6">
+      <h2 className="text-lg font-bold text-gray-800 mb-4 text-center">
+        결과 공유하기
+      </h2>
+
+      {!showShareMenu ? (
+        <div className="flex justify-center gap-3">
+          <ShareButton
+            onClick={shareNative}
+            className="bg-gradient-to-r from-purple-500 to-pink-500 text-white flex-1 max-w-[200px]"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+            </svg>
+            공유하기
+          </ShareButton>
+          <ShareButton
+            onClick={copyToClipboard}
+            className="bg-gray-100 text-gray-700 hover:bg-gray-200"
+          >
+            {copied ? (
+              <>
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+                복사됨!
+              </>
+            ) : (
+              <>
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                </svg>
+                링크 복사
+              </>
+            )}
+          </ShareButton>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          <div className="grid grid-cols-2 gap-3">
+            <ShareButton
+              onClick={shareToTwitter}
+              className="bg-black text-white"
+            >
+              <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+              </svg>
+              X (Twitter)
+            </ShareButton>
+            <ShareButton
+              onClick={shareToFacebook}
+              className="bg-[#1877f2] text-white"
+            >
+              <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
+              </svg>
+              Facebook
+            </ShareButton>
+            <ShareButton
+              onClick={shareToKakao}
+              className="bg-[#fee500] text-[#3c1e1e]"
+            >
+              <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 3C6.477 3 2 6.477 2 10.5c0 2.592 1.673 4.87 4.204 6.152-.162.582-.537 2.117-.616 2.443-.096.402.147.398.31.289.128-.085 2.039-1.376 2.865-1.937.736.102 1.49.153 2.237.153 5.523 0 10-3.477 10-7.5S17.523 3 12 3z" />
+              </svg>
+              카카오톡
+            </ShareButton>
+            <ShareButton
+              onClick={copyToClipboard}
+              className="bg-gray-100 text-gray-700 hover:bg-gray-200"
+            >
+              {copied ? (
+                <>
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                  복사됨!
+                </>
+              ) : (
+                <>
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                  </svg>
+                  링크 복사
+                </>
+              )}
+            </ShareButton>
+          </div>
+          <button
+            onClick={() => setShowShareMenu(false)}
+            className="w-full text-gray-500 text-sm py-2 hover:text-gray-700"
+          >
+            닫기
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
 
 function ResultContent() {
   const searchParams = useSearchParams();
@@ -141,6 +343,9 @@ function ResultContent() {
             ))}
           </div>
         </div>
+
+        {/* 공유하기 */}
+        <ShareSection result={result} currentUrl={typeof window !== "undefined" ? window.location.href : ""} />
 
         {/* 다시 테스트하기 버튼 */}
         <div className="text-center space-y-4">
