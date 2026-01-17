@@ -70,39 +70,46 @@ function ShareSection({ result, answers }: ShareSectionProps) {
     window.open(facebookUrl, "_blank", "width=600,height=400");
   };
 
-  const shareToKakao = () => {
-    if (typeof window !== "undefined" && (window as unknown as { Kakao?: { Share?: { sendDefault: (options: unknown) => void } } }).Kakao?.Share) {
-      const baseUrl = shareUrl.split("/result")[0];
-      (window as unknown as { Kakao: { Share: { sendDefault: (options: unknown) => void } } }).Kakao.Share.sendDefault({
-        objectType: "feed",
-        content: {
-          title: `나의 동물 성격 유형: ${result.emoji} ${result.name}`,
-          description: result.description.slice(0, 100) + "...",
-          imageUrl: "",
-          link: {
-            mobileWebUrl: shareUrl,
-            webUrl: shareUrl,
-          },
-        },
-        buttons: [
-          {
-            title: "결과 확인하기",
-            link: {
-              mobileWebUrl: shareUrl,
-              webUrl: shareUrl,
-            },
-          },
-          {
-            title: "나도 테스트하기",
-            link: {
-              mobileWebUrl: baseUrl + "/test",
-              webUrl: baseUrl + "/test",
-            },
-          },
-        ],
+  const shareToKakao = async () => {
+    const kakaoShareText = `나의 동물 성격 유형: ${result.emoji} ${result.name}\n${result.description.slice(0, 50)}...`;
+
+    // 방법 1: Web Share API 시도 (모바일에서 카카오톡 포함한 공유 시트 표시)
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: `동물 성격 테스트 결과: ${result.emoji} ${result.name}`,
+          text: kakaoShareText,
+          url: shareUrl,
+        });
+        return;
+      } catch {
+        // 사용자가 취소하거나 실패한 경우 다음 방법 시도
+      }
+    }
+
+    // 방법 2: 모바일에서 카카오톡 URL 스킴 사용
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    if (isMobile) {
+      const kakaoLinkParams = new URLSearchParams({
+        msg: `${shareText}\n테스트 해보기: ${shareUrl}`,
+        url: shareUrl,
+        appid: window.location.hostname,
+        appver: "1.0",
+        appname: "동물 성격 테스트",
+        type: "link",
+        apiver: "2.0"
       });
-    } else {
-      alert("카카오 공유 기능을 사용하려면 카카오 SDK 설정이 필요합니다.");
+
+      window.location.href = `kakaolink://sendurl?${kakaoLinkParams.toString()}`;
+      return;
+    }
+
+    // 방법 3: 데스크톱에서는 클립보드 복사로 대체
+    try {
+      await navigator.clipboard.writeText(`${shareText}\n${shareUrl}`);
+      alert("링크가 복사되었습니다! 카카오톡에 붙여넣기 해주세요.");
+    } catch {
+      alert("링크 복사에 실패했습니다. 직접 URL을 복사해주세요.");
     }
   };
 
