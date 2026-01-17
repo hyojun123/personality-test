@@ -2,7 +2,7 @@
 
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { Suspense, useState } from "react";
+import { Suspense, useState, useEffect } from "react";
 import { findMatchingAnimal, findTopMatches, calculateDimensionScores, Answers } from "@/lib/calculateResult";
 import { dimensionLabels, Dimension } from "@/data/questions";
 import { Animal } from "@/data/animals";
@@ -26,15 +26,22 @@ function ShareButton({ onClick, children, className = "" }: ShareButtonProps) {
 
 interface ShareSectionProps {
   result: Animal;
-  currentUrl: string;
+  answers: Answers;
 }
 
-function ShareSection({ result, currentUrl }: ShareSectionProps) {
+function ShareSection({ result, answers }: ShareSectionProps) {
   const [copied, setCopied] = useState(false);
   const [showShareMenu, setShowShareMenu] = useState(false);
+  const [shareUrl, setShareUrl] = useState("");
+
+  useEffect(() => {
+    // 클라이언트에서 결과가 포함된 공유 URL 생성
+    const baseUrl = window.location.origin;
+    const encodedAnswers = encodeURIComponent(JSON.stringify(answers));
+    setShareUrl(`${baseUrl}/result?answers=${encodedAnswers}`);
+  }, [answers]);
 
   const shareText = `나는 ${result.emoji} ${result.name} 유형이래요! 동물 성격 테스트로 나의 성격 유형을 알아보세요!`;
-  const shareUrl = currentUrl;
 
   const copyToClipboard = async () => {
     try {
@@ -65,6 +72,7 @@ function ShareSection({ result, currentUrl }: ShareSectionProps) {
 
   const shareToKakao = () => {
     if (typeof window !== "undefined" && (window as unknown as { Kakao?: { Share?: { sendDefault: (options: unknown) => void } } }).Kakao?.Share) {
+      const baseUrl = shareUrl.split("/result")[0];
       (window as unknown as { Kakao: { Share: { sendDefault: (options: unknown) => void } } }).Kakao.Share.sendDefault({
         objectType: "feed",
         content: {
@@ -78,10 +86,17 @@ function ShareSection({ result, currentUrl }: ShareSectionProps) {
         },
         buttons: [
           {
+            title: "결과 확인하기",
+            link: {
+              mobileWebUrl: shareUrl,
+              webUrl: shareUrl,
+            },
+          },
+          {
             title: "나도 테스트하기",
             link: {
-              mobileWebUrl: shareUrl.split("/result")[0] + "/test",
-              webUrl: shareUrl.split("/result")[0] + "/test",
+              mobileWebUrl: baseUrl + "/test",
+              webUrl: baseUrl + "/test",
             },
           },
         ],
@@ -345,7 +360,7 @@ function ResultContent() {
         </div>
 
         {/* 공유하기 */}
-        <ShareSection result={result} currentUrl={typeof window !== "undefined" ? window.location.href : ""} />
+        <ShareSection result={result} answers={answers} />
 
         {/* 다시 테스트하기 버튼 */}
         <div className="text-center space-y-4">
